@@ -1,0 +1,37 @@
+# Définit les services (les conteneurs) de l'application
+services:
+  # Service de la base de données MongoDB
+  mongodb:
+    image: mongo:latest # Utilise la dernière image de MongoDB
+    container_name: mongodb_container # Nomme le conteneur
+    restart: always # Redémarre toujours le conteneur en cas d'erreur
+    ports:
+      - "27017:27017" # Mappe le port 27017 de l'hôte au port 27017 du conteneur
+    volumes:
+      # Lie le volume 'mongodb_data' pour stocker les données de la base
+      - mongodb_data:/data/db
+      # Lie les fichiers de votre projet au conteneur MongoDB pour la migration
+      - .:/data/csv
+
+  # Service pour la migration (utilise un bind mount pour l'accès aux fichiers)
+  data_migration:
+    image: python:3.9-slim # Utilise une image Python de base
+    container_name: data_migration_container # Nomme le conteneur de migration
+    depends_on:
+      - mongodb # S'assure que le service MongoDB est démarré avant celui-ci
+    volumes:
+      # Lie le répertoire courant (le dossier du projet) au dossier /app du conteneur
+      - .:/app
+    # Spécifie le répertoire de travail pour les commandes
+    working_dir: /app
+    # Vous pouvez ajouter ici la commande pour lancer votre script Python
+    # Par exemple:
+    # command: python votre_script_de_migration.py
+
+# Définit les volumes que Docker va gérer
+volumes:
+  # Volume pour les données de la base de données MongoDB
+  mongodb_data:
+    # Le driver 'local' est le plus courant et gère un volume sur l'hôte
+    driver: local
+
