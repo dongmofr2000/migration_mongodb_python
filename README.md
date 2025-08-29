@@ -55,3 +55,7 @@ Lancement des tests
 Pour vérifier que la migration s'est bien déroulée, exécutez le script de tests avec la commande pytest :
 pytest test_integrity.py
 ```pytest` exécutera automatiquement tous les tests définis dans le fichier `test_integrity.py` et affichera un rapport détaillé des résultats, en indiquant quels tests ont réussi ou échoué.
+### URL de l'API publique
+
+Votre API est maintenant déployée et accessible via l'URL suivante :
+[API de Données de Seattle](https://seattle-data-api-250346361499.europe-west9.run.app)
