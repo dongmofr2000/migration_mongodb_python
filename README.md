@@ -73,6 +73,8 @@ un schéma NoSQL pertinent
   "is_active": "<boolean>",
   "last_login": "<ISODate>",
   "created_at": "<ISODate>"
+
+  
   un système d'authentification conforme aux régulations en vigueur
 
 # -*- coding: utf-8 -*-
