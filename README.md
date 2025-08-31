@@ -268,6 +268,134 @@ if __name__ == "__main__":
         print("\nTentative d'accès avec un jeton expiré :")
         protected_route(expired_token, ["admin"])
 
+        # -*- coding: utf-8 -*-
+
+mise en place de l’authentification et les différents rôles utilisateurs
+
+import os
+import bcrypt
+import jwt
+from datetime import datetime, timedelta
+
+# Clé secrète pour signer les jetons JWT.
+# IMPORTANT : Dans un environnement de production, utilisez une variable d'environnement !
+JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'votre_clé_secrète_ici')
+
+# Base de données in-memory pour la démo.
+# Dans un vrai projet, utilisez une base de données comme MongoDB ou PostgreSQL.
+USERS_DB = {}
+
+def hash_password(password):
+    """
+    Hache un mot de passe en utilisant un sel généré de manière aléatoire.
+    Cette approche est conforme aux meilleures pratiques de sécurité.
+    """
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed_password
+
+def verify_password(password, hashed_password):
+    """
+    Vérifie si un mot de passe en texte clair correspond au mot de passe haché.
+    """
+    return bcrypt.checkpw(password.encode('utf-8'), hashed_password)
+
+def create_user(username, password, roles=None):
+    """
+    Crée un nouvel utilisateur avec un mot de passe haché et des rôles.
+    """
+    if roles is None:
+        roles = ['user']  # Rôle par défaut
+    
+    if username in USERS_DB:
+        print(f"Erreur : L'utilisateur '{username}' existe déjà.")
+        return None
+    
+    hashed_password = hash_password(password)
+    user_data = {
+        'username': username,
+        'password': hashed_password,
+        'roles': roles
+    }
+    USERS_DB[username] = user_data
+    print(f"Utilisateur '{username}' créé avec succès. Rôles : {roles}.")
+    return user_data
+
+def login(username, password):
+    """
+    Authentifie un utilisateur et retourne un jeton JWT s'il réussit.
+    """
+    user_data = USERS_DB.get(username)
+    if not user_data:
+        return None
+    
+    if verify_password(password, user_data['password']):
+        payload = {
+            'username': user_data['username'],
+            'roles': user_data['roles'],
+            'exp': datetime.utcnow() + timedelta(minutes=30)  # Le jeton expire après 30 minutes
+        }
+        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
+        print(f"Connexion réussie pour '{username}'. Jeton généré.")
+        return token
+    else:
+        return None
+
+def protected_route_check(token, required_roles):
+    """
+    Fonction de vérification d'accès pour les routes protégées.
+    """
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+        user_roles = payload.get('roles', [])
+        
+        # Vérifie si l'utilisateur a au moins un des rôles requis
+        if any(role in user_roles for role in required_roles):
+            print(f"Accès accordé. Utilisateur : {payload['username']}, Rôles : {user_roles}.")
+            return True
+        else:
+            print(f"Accès refusé. Rôles insuffisants. Rôles de l'utilisateur : {user_roles}.")
+            return False
+            
+    except jwt.ExpiredSignatureError:
+        print("Accès refusé. Le jeton a expiré.")
+        return False
+    except jwt.InvalidTokenError:
+        print("Accès refusé. Jeton invalide.")
+        return False
+
+# --- Démonstration ---
+
+if __name__ == "__main__":
+    # 1. Création des utilisateurs avec différents rôles
+    print("--- Création des utilisateurs ---")
+    create_user('admin_user', 'mot_de_passe_admin', ['admin', 'user'])
+    create_user('john_doe', 'mot_de_passe_simple', ['user'])
+    create_user('guest_user', 'mot_de_passe_invite', ['guest'])
+
+    # 2. Tentatives de connexion
+    print("\n--- Tentatives de connexion ---")
+    admin_token = login('admin_user', 'mot_de_passe_admin')
+    user_token = login('john_doe', 'mot_de_passe_simple')
+    invalid_login = login('john_doe', 'mauvais_mot_de_passe')
+
+    # 3. Accès aux routes protégées
+    print("\n--- Accès aux routes protégées ---")
+    print("Vérification de l'accès à la page d'administration :")
+    protected_route_check(admin_token, ['admin'])
+    protected_route_check(user_token, ['admin'])
+
+    print("\nVérification de l'accès à la page utilisateur :")
+    protected_route_check(admin_token, ['user'])
+    protected_route_check(user_token, ['user'])
+
+    print("\nVérification de l'accès d'un invité à la page utilisateur :")
+    guest_token = login('guest_user', 'mot_de_passe_invite')
+    if guest_token:
+        protected_route_check(guest_token, ['user'])
+    
+
+
 ### URL de l'API publique
 
 Votre API est maintenant déployée et accessible via l'URL suivante :
