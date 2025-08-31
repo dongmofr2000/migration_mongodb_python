@@ -55,6 +55,23 @@ Lancement des tests
 Pour vérifier que la migration s'est bien déroulée, exécutez le script de tests avec la commande pytest :
 pytest test_integrity.py
 ```pytest` exécutera automatiquement tous les tests définis dans le fichier `test_integrity.py` et affichera un rapport détaillé des résultats, en indiquant quels tests ont réussi ou échoué.
+un schéma NoSQL pertinent
+{
+  "_id": "<ObjectId>",
+  "user_id": "<string>",
+  "username": "<string>",
+  "email": "<string>",
+  "roles": [
+    {
+      "role_id": "<string>",
+      "name": "<string>"
+    }
+  ],
+  "password_hash": "<string>",
+  "is_active": "<boolean>",
+  "last_login": "<ISODate>",
+  "created_at": "<ISODate>"
+}
 ### URL de l'API publique
 
 Votre API est maintenant déployée et accessible via l'URL suivante :
