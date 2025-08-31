@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Système d'Authentification Sécurisé</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-slate-100 p-4">
+
+<div id="loading-spinner" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+    <div class="w-12 h-12 rounded-full border-4 border-t-4 border-slate-300 animate-spin" style="border-top-color: #2563eb;"></div>
+</div>
+
+<div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
+    <!-- Message de feedback -->
+    <div id="message-box" class="hidden mb-4 p-3 rounded-lg text-sm font-medium" role="alert"></div>
+
+    <div id="auth-section">
+        <h2 class="text-3xl font-bold text-center text-slate-800 mb-6">Connexion / Inscription</h2>
+        <form id="auth-form" class="space-y-4">
+            <div>
+                <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Adresse email</label>
+                <input type="email" id="email" required autocomplete="email" class="w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-slate-700 mb-1">Mot de passe</label>
+                <input type="password" id="password" required autocomplete="current-password" class="w-full p-3 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div class="flex items-center space-x-4">
+                <button type="submit" id="login-button" class="w-1/2 flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
+                    Se connecter
+                </button>
+                <button type="button" id="register-button" class="w-1/2 flex justify-center py-3 px-4 border border-blue-600 rounded-lg shadow-sm text-sm font-medium text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
+                    S'inscrire
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div id="profile-section" class="hidden">
+        <h2 class="text-3xl font-bold text-center text-slate-800 mb-6">Bienvenue !</h2>
+        <div class="space-y-3 mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <p class="text-sm text-slate-700">Connecté en tant que : <span id="user-email" class="font-semibold text-slate-900"></span></p>
+            <p class="text-xs text-slate-500">ID de l'utilisateur (UID) : <span id="user-id" class="font-mono text-slate-600 text-[10px]"></span></p>
+        </div>
+        <button id="logout-button" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200">
+            Se déconnecter
+        </button>
+    </div>
+</div>
+
+<script type="module">
+    // Importation des modules Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Variables globales fournies par l'environnement
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+    // Éléments DOM
+    const authForm = document.getElementById('auth-form');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const loginButton = document.getElementById('login-button');
+    const registerButton = document.getElementById('register-button');
+    const logoutButton = document.getElementById('logout-button');
+    const authSection = document.getElementById('auth-section');
+    const profileSection = document.getElementById('profile-section');
+    const userEmailSpan = document.getElementById('user-email');
+    const userIdSpan = document.getElementById('user-id');
+    const messageBox = document.getElementById('message-box');
+    const loadingSpinner = document.getElementById('loading-spinner');
+
+    let app;
+    let auth;
+    let db;
+    let isAuthReady = false;
+
+    // Set Firebase log level for debugging
+    setLogLevel('debug');
+
+    // Initialisation de Firebase
+    if (firebaseConfig) {
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            // Démarrez le processus d'authentification
+            startAuthProcess();
+        } catch (error) {
+            console.error("Erreur d'initialisation de Firebase :", error);
+            showMessage("Erreur d'initialisation. L'application ne peut pas fonctionner.", "error");
+        }
+    } else {
+        showMessage("Configuration Firebase manquante. L'application ne peut pas fonctionner.", "error");
+    }
+
+    async function startAuthProcess() {
+        showLoading(true);
+        try {
+            if (initialAuthToken) {
+                await signInWithCustomToken(auth, initialAuthToken);
+            } else {
+                await signInAnonymously(auth);
+            }
+        } catch (error) {
+            console.error("Erreur d'authentification initiale :", error);
+            showMessage("Erreur d'authentification initiale. Veuillez réessayer.", "error");
+        }
+        showLoading(false);
+        isAuthReady = true;
+    }
+
+    // Gestion de l'état d'authentification
+    onAuthStateChanged(auth, async (user) => {
+        if (!isAuthReady) return;
+
+        if (user) {
+            authSection.classList.add('hidden');
+            profileSection.classList.remove('hidden');
+            userEmailSpan.textContent = user.email || 'Anonyme';
+            userIdSpan.textContent = user.uid;
+            showMessage(`Authentification réussie pour l'utilisateur ID: ${user.uid}`, "success");
+
+            // Si l'utilisateur est nouvellement inscrit, on peut ajouter des données de base dans Firestore.
+            const userRef = doc(db, "artifacts", appId, "users", user.uid, "profile", "data");
+            const docSnap = await getDoc(userRef);
+            if (!docSnap.exists()) {
+                 await setDoc(userRef, { email: user.email || 'Anonyme', created_at: new Date() });
+            }
+        } else {
+            authSection.classList.remove('hidden');
+            profileSection.classList.add('hidden');
+        }
+    });
+
+    // Gestion des messages d'erreur et de succès
+    function showMessage(message, type = "success") {
+        messageBox.textContent = message;
+        messageBox.classList.remove('hidden', 'bg-red-200', 'text-red-800', 'bg-green-200', 'text-green-800');
+        if (type === "success") {
+            messageBox.classList.add('bg-green-200', 'text-green-800');
+        } else if (type === "error") {
+            messageBox.classList.add('bg-red-200', 'text-red-800');
+        }
+        setTimeout(() => messageBox.classList.add('hidden'), 5000);
+    }
+
+    // Gestion du spinner de chargement
+    function showLoading(show) {
+        if (show) {
+            loadingSpinner.classList.remove('hidden');
+        } else {
+            loadingSpinner.classList.add('hidden');
+        }
+    }
+
+    // Gestion des événements du formulaire
+    authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        showLoading(true);
+        const email = emailInput.value;
+        const password = passwordInput.value;
+
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+        } catch (error) {
+            console.error("Erreur de connexion:", error);
+            let errorMessage = "Échec de la connexion. Veuillez vérifier vos identifiants.";
+            if (error.code === 'auth/invalid-email') {
+                errorMessage = "Adresse e-mail invalide.";
+            } else if (error.code === 'auth/wrong-password') {
+                errorMessage = "Mot de passe incorrect.";
+            } else if (error.code === 'auth/user-not-found') {
+                errorMessage = "Utilisateur non trouvé.";
+            }
+            showMessage(errorMessage, "error");
+        } finally {
+            showLoading(false);
+        }
+    });
+
+    registerButton.addEventListener('click', async () => {
+        showLoading(true);
+        const email = emailInput.value;
+        const password = passwordInput.value;
+
+        if (password.length < 6) {
+            showMessage("Le mot de passe doit contenir au moins 6 caractères.", "error");
+            showLoading(false);
+            return;
+        }
+
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+        } catch (error) {
+            console.error("Erreur d'inscription:", error);
+            let errorMessage = "Échec de l'inscription.";
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = "Cette adresse e-mail est déjà utilisée.";
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = "Le mot de passe est trop faible.";
+            }
+            showMessage(errorMessage, "error");
+        } finally {
+            showLoading(false);
+        }
+    });
+
+    logoutButton.addEventListener('click', async () => {
+        showLoading(true);
+        try {
+            await signOut(auth);
+            showMessage("Déconnexion réussie.", "success");
+        } catch (error) {
+            console.error("Erreur lors de la déconnexion:", error);
+            showMessage("Erreur lors de la déconnexion.", "error");
+        } finally {
+            showLoading(false);
+        }
+    });
+</script>
+</body>
+</html>
