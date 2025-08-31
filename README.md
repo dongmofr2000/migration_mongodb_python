@@ -399,6 +399,82 @@ if __name__ == "__main__":
     guest_token = login('guest_user', 'mot_de_passe_invite')
     if guest_token:
         protected_route_check(guest_token, ['user'])
+
+
+        Schéma Relationnel pour la base de données healthcare.csv
+
+Ce schéma est basé sur une modélisation entité-relation, où les données sont organisées en tables.
+1. Table Patients
+
+Cette table stocke les informations démographiques de chaque patient.
+
+    patient_id (INTEGER, PRIMARY KEY)
+
+    age (INTEGER)
+
+    sex (VARCHAR)
+
+2. Table Doctors
+
+Cette table stocke les informations sur les médecins.
+
+    doctor_id (INTEGER, PRIMARY KEY)
+
+    name (VARCHAR)
+
+    specialty (VARCHAR)
+
+3. Table Hospitals
+
+Cette table stocke les informations sur les hôpitaux.
+
+    hospital_id (INTEGER, PRIMARY KEY)
+
+    name (VARCHAR)
+
+4. Table Visits
+
+Cette table est la plus importante ; elle stocke les détails de chaque visite médicale et sert de lien entre les autres tables.
+
+    visit_id (INTEGER, PRIMARY KEY)
+
+    patient_id (INTEGER, FOREIGN KEY vers Patients.patient_id)
+
+    doctor_id (INTEGER, FOREIGN KEY vers Doctors.doctor_id)
+
+    hospital_id (INTEGER, FOREIGN KEY vers Hospitals.hospital_id)
+
+    visit_date (DATE)
+
+    blood_pressure (VARCHAR)
+
+    cholesterol (INTEGER)
+
+    heart_rate (INTEGER)
+
+    medication (VARCHAR)
+
+    diagnosis_primary (VARCHAR)
+
+    diagnosis_secondary (VARCHAR)
+
+    notes (TEXT)
+
+5. Table Lab_Results
+
+Cette table stocke les résultats de laboratoire, en les liant à la table Visits.
+
+    result_id (INTEGER, PRIMARY KEY)
+
+    visit_id (INTEGER, FOREIGN KEY vers Visits.visit_id)
+
+    test_name (VARCHAR)
+
+    value (FLOAT)
+
+    unit (VARCHAR)
+
+    status (VARCHAR)
     
 
 
