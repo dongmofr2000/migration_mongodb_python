@@ -55,6 +55,8 @@ Lancement des tests
 Pour vérifier que la migration s'est bien déroulée, exécutez le script de tests avec la commande pytest :
 pytest test_integrity.py
 ```pytest` exécutera automatiquement tous les tests définis dans le fichier `test_integrity.py` et affichera un rapport détaillé des résultats, en indiquant quels tests ont réussi ou échoué.
+
+
 un schéma NoSQL pertinent
 {
   "_id": "<ObjectId>",
@@ -302,6 +304,8 @@ def verify_password(password, hashed_password):
 
 def create_user(username, password, roles=None):
     """
+
+    
     Crée un nouvel utilisateur avec un mot de passe haché et des rôles.
     """
     if roles is None:
@@ -367,6 +371,8 @@ def protected_route_check(token, required_roles):
 # --- Démonstration ---
 
 if __name__ == "__main__":
+
+
     # 1. Création des utilisateurs avec différents rôles
     print("--- Création des utilisateurs ---")
     create_user('admin_user', 'mot_de_passe_admin', ['admin', 'user'])
